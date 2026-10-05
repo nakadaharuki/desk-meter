@@ -98,10 +98,16 @@ test('要求ごとのトークンを数え、子のエージェントは数え�
 test('メモは欄から足して消せ、Claude の道具からも残せる', async ($, on) => {
   const saved = new Map<string, unknown>([['notes', ['前のメモ']]])
   boot(on, saved)
+  on('tool.call', () => ({ result: 'ok' }))
   await start($)
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  // 打ちかけの字は、描き直しの後も残る
+  await ui.input({ key: 'note-input', text: '型を', kind: 'change' })
+  await $.tool.call({ tool: 'Read', file_path: 'a.md' })
+  expect((await ui.find({ key: 'note-input' }))?.props.value).toBe('型を')
   await ui.input({ key: 'note-input', text: '型を先に決める' })
+  expect((await ui.find({ key: 'note-input' }))?.props.value).toBe('')
   expect(saved.get('notes')).toEqual(['前のメモ', '型を先に決める'])
   await ui.press({ key: 'del-0' })
   expect(saved.get('notes')).toEqual(['型を先に決める'])

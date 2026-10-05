@@ -16,6 +16,7 @@ let branch = ''
 let startedAt = 0
 let notes = [] // メモ（$.store の 'notes' と同じ物）
 let toSend = null // ボタンから頼まれた、次に Claude に送る文
+let draft = '' // メモの欄に打ちかけの字（描き直しで消さないため）
 
 // $ を受け取ってよいのは、同じファイルの一番外の関数だけ
 async function refresh($) {
@@ -58,11 +59,16 @@ export function register(on) {
   on('session.start', async ($, e, next) => {
     const saved = await $.store.get('notes')
     if (Array.isArray(saved)) notes = saved
-    await $.tool.register({
-      name: 'note',
-      description: '作業のメモを desk-meter の欄に 1 行残す。決めたこと・後で確かめることを残すときに使う',
-      inputSchema: { type: 'object', properties: { text: { type: 'string', description: '1 行のメモ' } }, required: ['text'] },
-    })
+    // 読み直し（hot reload）で同じ名前をもう一度登録すると例外になりうるので、1 つずつ try で包む
+    try {
+      await $.tool.register({
+        name: 'note',
+        description: '作業のメモを desk-meter の欄に 1 行残す。決めたこと・後で確かめることを残すときに使う',
+        inputSchema: { type: 'object', properties: { text: { type: 'string', description: '1 行のメモ' } }, required: ['text'] },
+      })
+    } catch (err) {
+      $.ui.log('note の道具を登録できませんでした: ' + err.message)
+    }
     let n = 0
     $.clock.every(1000, async () => {
       n += 1
@@ -83,8 +89,9 @@ export function register(on) {
     return next(e)
   })
 
-  // ---- 道具の回数を数える（全部の道具・止めない） ----
+  // ---- 道具の回数を数える（止めない。$.ui.ask の質問も AskUserQuestion の呼び出しとして来るので除く） ----
   on('tool.call', async ($, e, next) => {
+    if (e.tool === 'AskUserQuestion') return next(e)
     tools[e.tool] = (tools[e.tool] ?? 0) + 1
     $.ui.invalidate('ui.render')
     return next(e)
@@ -229,11 +236,17 @@ export function register(on) {
           key: 'note-input',
           label: 'メモ',
           placeholder: '1 行書いて Enter',
-          value: '',
+          // 道具の呼び出しのたびに描き直すので、打ちかけの字を自分で持って返す
+          value: draft,
           submitLabel: '残す',
+          onInput: (value) => {
+            draft = value
+          },
           onSubmit: (value) => {
+            draft = ''
             const text = value.trim()
             if (text) return saveNotes($, (list) => [...list, text].slice(-20))
+            $.ui.invalidate('ui.render')
           },
         }),
         ...noteRows,
