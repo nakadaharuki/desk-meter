@@ -1,7 +1,7 @@
 {
   "name": "desk-meter",
   "owner": { "name": "nakadadev" },
-  "metadata": { "description": "Zenn の本で作る、デスクトップ版 Claude Code の Mod" },
+  "metadata": { "description": "デスクトップ版 Claude Code の Mod の見本" },
   "plugins": [
     { "name": "desk-meter", "source": "./", "description": "コンテキストの使用率・ブランチ・道具の回数を帯に、要求ごとのトークンを欄のグラフに出す", "version": "0.1.0" }
   ]
