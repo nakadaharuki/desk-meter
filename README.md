@@ -33,6 +33,8 @@ claude plugin test
 
 ## 関連
 
+成分表（何に触れるか）と、版を固定した入れ方は [modscode.com/mods/desk-meter](https://modscode.com/mods/desk-meter/) にあります。
+
 デスクトップ版の Mods で踏んだ罠は Zenn に書いています: https://zenn.dev/nakadaharuki
 
 MIT License
