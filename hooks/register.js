@@ -18,7 +18,7 @@ let notes = [] // メモ（$.store の 'notes' と同じ物）
 let toSend = null // ボタンから頼まれた、次に Claude に送る文
 let draft = '' // メモの欄に打ちかけの字（描き直しで消さないため）
 
-// $ を受け取ってよいのは、同じファイルの一番外の関数だけ
+// $ を渡す関数は同じファイルに置く（claude plugin validate が「via refresh」と呼び先をたどれる）
 async function refresh($) {
   try {
     const u = await $.session.usage()
