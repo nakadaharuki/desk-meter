@@ -1,0 +1,4 @@
+{
+  "description": "desk-meter の本体",
+  "modules": ["./register.js"]
+}
