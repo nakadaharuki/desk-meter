@@ -1,6 +1,85 @@
 // desk-meter: 帯にコンテキストの使用率・ブランチ・道具の回数、欄に要求ごとのトークンのグラフとメモ
 import { tokenChart, short } from './chart.js'
 
+// 表示の言葉。language の設定が auto なら Claude Code の language 設定（"japanese" など）に合わせ、無ければ英語
+const MESSAGES = {
+  en: {
+    noteToolDesc: 'Leaves one line of notes in the desk-meter pane: something decided, or something to check later',
+    noteToolArg: 'one line of notes',
+    noteToolFailed: 'Could not register the note tool: ',
+    cmdDesc: 'Open the desk-meter pane (/meter reset starts the counts over)',
+    cmdFailed: 'Could not register /meter: ',
+    ask: 'Run this command? ',
+    run: 'Run',
+    stop: 'Stop',
+    stopped: 'The user stopped this command. Ask the user before suggesting another way.',
+    askFailed: 'desk-meter could not ask, so this command was not run.',
+    noteEmpty: 'The note is empty. Put one line in text.',
+    noteSaved: 'Note left: ',
+    reset: 'Counts started over',
+    ctx: 'Context {pct}%',
+    ctxFull: 'Context {pct}% ({tokens} / {window})',
+    ctxNone: 'Context not measured yet',
+    tools: 'Tools {n}',
+    toolsNone: 'No tools used yet',
+    toolsTop: 'Tools ',
+    hit: 'Cache hit on the last request {pct}%',
+    hitNone: 'The cache hit shows after the first request',
+    notes: 'Notes {n}',
+    noteLabel: 'Note',
+    notePlaceholder: 'One line, then Enter',
+    noteSubmit: 'Add',
+    review: 'Ask Claude for a review',
+    reviewPrompt: 'With the desk-meter notes ({notes}) in mind, review the work so far in 3 lines and name one thing to do next.',
+    step: 'In {input} (read {read})  Out {output}',
+    chartAlt: 'Tokens per request ({n})',
+    chartAxis: 'older ← requests: {n} → newer',
+    chartLegend: ['Cache read', 'Write', 'New input', 'Output'],
+    elapsed: (h, m) => (h ? `${h}h ${m}m` : `${m}m`),
+  },
+  ja: {
+    noteToolDesc: '作業のメモを desk-meter の欄に 1 行残す。決めたこと・後で確かめることを残すときに使う',
+    noteToolArg: '1 行のメモ',
+    noteToolFailed: 'note の道具を登録できませんでした: ',
+    cmdDesc: 'desk-meter の欄を開く（/meter reset で数え直す）',
+    cmdFailed: '/meter を登録できませんでした: ',
+    ask: 'このコマンドを走らせますか？ ',
+    run: '走らせる',
+    stop: '止める',
+    stopped: '利用者がこのコマンドを止めました。別のやり方を提案する前に、利用者に確かめてください。',
+    askFailed: 'desk-meter の確認が失敗したので、このコマンドは走らせていません。',
+    noteEmpty: 'メモが空です。text に 1 行を入れてください。',
+    noteSaved: 'メモを残しました: ',
+    reset: '数え直しました',
+    ctx: '文脈 {pct}%',
+    ctxFull: '文脈 {pct}%（{tokens} / {window}）',
+    ctxNone: '文脈はまだ測れていません',
+    tools: '道具 {n} 回',
+    toolsNone: '道具はまだ使われていません',
+    toolsTop: '道具 ',
+    hit: '直近の要求のキャッシュの当たり {pct}%',
+    hitNone: 'キャッシュの当たりは、最初の要求の後に出ます',
+    notes: 'メモ {n}',
+    noteLabel: 'メモ',
+    notePlaceholder: '1 行書いて Enter',
+    noteSubmit: '残す',
+    review: 'Claude に振り返りを頼む',
+    reviewPrompt: 'desk-meter のメモ（{notes}）を踏まえて、ここまでの作業を 3 行で振り返り、次にやることを 1 つ挙げてください。',
+    step: '入力 {input}（読み {read}） 出力 {output}',
+    chartAlt: '要求ごとのトークン（{n} 回）',
+    chartAxis: '古い ← 要求 {n} 回 → 新しい',
+    chartLegend: ['キャッシュ読み', '書き', '新しい入力', '出力'],
+    elapsed: (h, m) => (h ? `${h}時間${m}分` : `${m}分`),
+  },
+}
+let lang = 'en'
+const t = (key, params = {}) => String(MESSAGES[lang][key]).replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''))
+// "japanese"・"日本語"・"ja-JP" → 'ja'。それ以外は英語
+const pickLang = (option, setting) => {
+  const v = option && option !== 'auto' ? option : setting
+  return typeof v === 'string' && /^(ja\b|ja[-_]|japanese|日本)/i.test(v.trim()) ? 'ja' : 'en'
+}
+
 const PANE = 'desk-meter'
 const TOOL_NOTE = 'mcp__desk-meter__note'
 // rm -r / rm -rf / git reset --hard / git push --force（-f も）
@@ -48,26 +127,28 @@ const elapsed = (ms) => {
   const s = Math.max(0, Math.floor(ms / 1000))
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
-  return h ? `${h}時間${m}分` : `${m}分`
+  return MESSAGES[lang].elapsed(h, m)
 }
 
 const topTools = (n) => Object.entries(tools).sort((a, b) => b[1] - a[1]).slice(0, n)
 const toolTotal = () => Object.values(tools).reduce((a, b) => a + b, 0)
 
-export function register(on) {
+export function register(on, options = {}) {
   // ---- 起動: コマンドと道具を登録し、メモを読み、時計を 1 本だけ回す ----
   on('session.start', async ($, e, next) => {
+    const settings = await $.settings.read().catch(() => ({}))
+    lang = pickLang(options.language, settings?.language)
     const saved = await $.store.get('notes')
     if (Array.isArray(saved)) notes = saved
     // 読み直し（hot reload）で同じ名前をもう一度登録すると例外になりうるので、1 つずつ try で包む
     try {
       await $.tool.register({
         name: 'note',
-        description: '作業のメモを desk-meter の欄に 1 行残す。決めたこと・後で確かめることを残すときに使う',
-        inputSchema: { type: 'object', properties: { text: { type: 'string', description: '1 行のメモ' } }, required: ['text'] },
+        description: t('noteToolDesc'),
+        inputSchema: { type: 'object', properties: { text: { type: 'string', description: t('noteToolArg') } }, required: ['text'] },
       })
     } catch (err) {
-      $.ui.log('note の道具を登録できませんでした: ' + err.message)
+      $.ui.log(t('noteToolFailed') + err.message)
     }
     let n = 0
     $.clock.every(1000, async () => {
@@ -82,9 +163,9 @@ export function register(on) {
     })
     // 名前がかぶると例外になるので、登録は最後に・try で包む
     try {
-      await $.command.register({ name: 'meter', description: 'desk-meter の欄を開く（/meter reset で数え直す）', argumentHint: '[reset]', immediate: true })
+      await $.command.register({ name: 'meter', description: t('cmdDesc'), argumentHint: '[reset]', immediate: true })
     } catch (err) {
-      $.ui.log('/meter を登録できませんでした: ' + err.message)
+      $.ui.log(t('cmdFailed') + err.message)
     }
     return next(e)
   })
@@ -100,22 +181,22 @@ export function register(on) {
   // ---- 危ないコマンドは、走らせる前に聞く ----
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!RISKY.test(e.command ?? '')) return next(e)
-    let answer = '止める'
+    let answer = t('stop')
     try {
-      answer = await $.ui.ask('このコマンドを走らせますか？ ' + e.command, ['走らせる', '止める'])
+      answer = await $.ui.ask(t('ask') + e.command, [t('run'), t('stop')])
     } catch {
       // 答える人がいない（claude -p）・閉じられた → 止める側に倒す
     }
-    if (answer !== '走らせる') return { deny: '利用者がこのコマンドを止めました。別のやり方を提案する前に、利用者に確かめてください。' }
+    if (answer !== t('run')) return { deny: t('stopped') }
     return next(e)
-  }).catch(async () => ({ deny: 'desk-meter の確認が失敗したので、このコマンドは走らせていません。' }))
+  }).catch(async () => ({ deny: t('askFailed') }))
 
   // ---- Claude 用の道具: メモを残す ----
   on('tool.call', { tool: TOOL_NOTE }, async ($, e) => {
     const text = String(e.text ?? '').trim().slice(0, 200)
-    if (!text) return { result: 'メモが空です。text に 1 行を入れてください。' }
+    if (!text) return { result: t('noteEmpty') }
     await saveNotes($, (list) => [...list, text].slice(-20))
-    return { result: 'メモを残しました: ' + text }
+    return { result: t('noteSaved') + text }
   })
 
   // 自分の道具は確認なしで通す（メモを書くだけで、外に出ない）
@@ -143,7 +224,7 @@ export function register(on) {
       steps = []
       tools = {}
       $.ui.invalidate('ui.render')
-      return { text: '数え直しました' }
+      return { text: t('reset') }
     }
     await $.ui.open({ id: PANE, title: 'desk-meter', focus: true, closeOnEscape: true })
     return {}
@@ -160,10 +241,10 @@ export function register(on) {
     if (pct !== undefined && pct !== null) {
       // color に undefined を渡さない（値の無い項目は書かない）
       const style = hot ? { bold: true, color: desk ? 'warning' : 'yellow' } : { bold: true }
-      parts.push(Text({ key: 'ctx', ...style, children: [`文脈 ${pct}%`] }))
+      parts.push(Text({ key: 'ctx', ...style, children: [t('ctx', { pct })] }))
     }
     if (branch) parts.push(Text({ key: 'branch', children: ['⎇ ' + branch] }))
-    parts.push(Text({ key: 'tools', dimColor: true, children: [`道具 ${toolTotal()} 回`] }))
+    parts.push(Text({ key: 'tools', dimColor: true, children: [t('tools', { n: toolTotal() })] }))
     if (startedAt) parts.push(Text({ key: 'time', dimColor: true, children: [elapsed(Date.now() - startedAt)] }))
     return Box({ flexDirection: 'row', columnGap: 3, children: parts })
   })
@@ -180,30 +261,30 @@ export function register(on) {
       bold: true,
       children: [
         context?.percent !== undefined && context?.percent !== null
-          ? `文脈 ${context.percent}%（${short(context.tokens ?? 0)} / ${short(context.window)}）`
-          : '文脈はまだ測れていません',
+          ? t('ctxFull', { pct: context.percent, tokens: short(context.tokens ?? 0), window: short(context.window) })
+          : t('ctxNone'),
       ],
     })
 
     // デスクトップは Svg のグラフ、端末は字で直近 5 回
     const chart = desk
       ? Svg({
-          source: tokenChart(steps, Math.floor(cols * CELL.w), Math.floor(9 * CELL.h)),
-          alt: `要求ごとのトークン（${steps.length} 回）`,
+          source: tokenChart(steps, Math.floor(cols * CELL.w), Math.floor(9 * CELL.h), { legend: MESSAGES[lang].chartLegend, axis: t('chartAxis', { n: steps.length }) }),
+          alt: t('chartAlt', { n: steps.length }),
           width: Math.floor(cols * CELL.w),
           height: Math.floor(9 * CELL.h),
         })
       : Box({
           flexDirection: 'column',
           children: steps.slice(-5).map((s, i) =>
-            Text({ key: 'step-' + i, children: [`入力 ${short(s.input + s.cacheRead + s.cacheWrite)}（読み ${short(s.cacheRead)}） 出力 ${short(s.output)}`] }),
+            Text({ key: 'step-' + i, children: [t('step', { input: short(s.input + s.cacheRead + s.cacheWrite), read: short(s.cacheRead), output: short(s.output) })] }),
           ),
         })
 
     const hit = last ? Math.round((last.cacheRead / Math.max(1, last.input + last.cacheRead + last.cacheWrite)) * 100) : null
     const toolLine = Text({
       dimColor: true,
-      children: [toolTotal() ? '道具 ' + topTools(4).map(([k, v]) => `${k.replace(/^mcp__[^_]+(?:_[^_]+)*__/, '')} ${v}`).join(' · ') : '道具はまだ使われていません'],
+      children: [toolTotal() ? t('toolsTop') + topTools(4).map(([k, v]) => `${k.replace(/^mcp__[^_]+(?:_[^_]+)*__/, '')} ${v}`).join(' · ') : t('toolsNone')],
     })
 
     const noteRows = notes.map((text, i) =>
@@ -229,16 +310,16 @@ export function register(on) {
       children: [
         head,
         chart,
-        Text({ dimColor: true, children: [hit === null ? 'キャッシュの当たりは、最初の要求の後に出ます' : `直近の要求のキャッシュの当たり ${hit}%`] }),
+        Text({ dimColor: true, children: [hit === null ? t('hitNone') : t('hit', { pct: hit })] }),
         toolLine,
-        Text({ bold: true, children: [`メモ ${notes.length}`] }),
+        Text({ bold: true, children: [t('notes', { n: notes.length })] }),
         Input({
           key: 'note-input',
-          label: 'メモ',
-          placeholder: '1 行書いて Enter',
+          label: t('noteLabel'),
+          placeholder: t('notePlaceholder'),
           // 道具の呼び出しのたびに描き直すので、打ちかけの字を自分で持って返す
           value: draft,
-          submitLabel: '残す',
+          submitLabel: t('noteSubmit'),
           onInput: (value) => {
             draft = value
           },
@@ -252,9 +333,9 @@ export function register(on) {
         ...noteRows,
         Button({
           key: 'ask-review',
-          label: 'Claude に振り返りを頼む',
+          label: t('review'),
           onPress: () => {
-            toSend = 'desk-meter のメモ（' + notes.join(' / ') + '）を踏まえて、ここまでの作業を 3 行で振り返り、次にやることを 1 つ挙げてください。'
+            toSend = t('reviewPrompt', { notes: notes.join(' / ') })
           },
         }),
       ],

@@ -1,6 +1,15 @@
 {
   "name": "desk-meter",
-  "version": "0.1.0",
-  "description": "コンテキストの使用率・ブランチ・道具の回数を帯に、要求ごとのトークンを欄のグラフに出す。Claude 用のメモの道具と、危ないコマンドの確認つき",
-  "author": { "name": "nakadadev" }
+  "version": "0.2.0",
+  "description": "Context usage, branch and tool count in a band; tokens per request charted in a pane; a note tool for Claude and a check before dangerous commands. English and Japanese",
+  "author": { "name": "nakadadev" },
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the band, the pane and the messages; auto follows Claude Code's language setting (Japanese when it names Japanese, English otherwise)",
+      "options": ["auto", "en", "ja"],
+      "default": "auto"
+    }
+  }
 }

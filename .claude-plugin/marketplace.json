@@ -1,8 +1,17 @@
 {
   "name": "desk-meter",
-  "owner": { "name": "nakadadev" },
-  "metadata": { "description": "デスクトップ版 Claude Code の Mod の見本" },
+  "owner": {
+    "name": "nakadadev"
+  },
+  "metadata": {
+    "description": "A sample mod for Claude Code on the desktop"
+  },
   "plugins": [
-    { "name": "desk-meter", "source": "./", "description": "コンテキストの使用率・ブランチ・道具の回数を帯に、要求ごとのトークンを欄のグラフに出す", "version": "0.1.0" }
+    {
+      "name": "desk-meter",
+      "source": "./",
+      "description": "Context usage, branch and tool count in a band; tokens per request charted in a pane. English and Japanese",
+      "version": "0.2.0"
+    }
   ]
 }

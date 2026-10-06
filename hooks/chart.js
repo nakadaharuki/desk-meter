@@ -22,8 +22,9 @@ export function short(n) {
  * @param {{ input: number, output: number, cacheRead: number, cacheWrite: number }[]} steps 古い順
  * @param {number} w SVG の幅（CSS の点）
  * @param {number} h SVG の高さ（CSS の点）
+ * @param {{ legend?: string[], axis?: string }} words 凡例 4 つと下の軸の字（無ければ英語）
  */
-export function tokenChart(steps, w, h) {
+export function tokenChart(steps, w, h, words = {}) {
   const pad = { l: 8, r: 44, t: 22, b: 18 }
   const iw = w - pad.l - pad.r
   const ih = h - pad.t - pad.b
@@ -46,7 +47,9 @@ export function tokenChart(steps, w, h) {
     parts.push(`<rect x="${x.toFixed(1)}" y="${(y(base) - 3).toFixed(1)}" width="${bw.toFixed(1)}" height="2" fill="${COLORS.output}"/>`)
   })
   const last = totals[totals.length - 1] ?? 0
-  const legend = [['cacheRead', 'キャッシュ読み'], ['cacheWrite', '書き'], ['input', '新しい入力'], ['output', '出力']]
+  const labels = words.legend ?? ['Cache read', 'Write', 'New input', 'Output']
+  const legend = ['cacheRead', 'cacheWrite', 'input', 'output']
+    .map((k, i) => [k, labels[i]])
     .map(([k, label], i) => `<rect x="${pad.l + i * 92}" y="6" width="9" height="9" fill="${COLORS[k]}"/><text x="${pad.l + 13 + i * 92}" y="14">${esc(label)}</text>`)
     .join('')
   return [
@@ -56,7 +59,7 @@ export function tokenChart(steps, w, h) {
     `<line x1="${pad.l}" x2="${pad.l + iw}" y1="${pad.t + ih}" y2="${pad.t + ih}" stroke="${COLORS.axis}" stroke-width="1"/>`,
     `<text x="${pad.l + iw + 4}" y="${pad.t + 8}">${short(max)}</text>`,
     `<text x="${pad.l + iw + 4}" y="${y(last).toFixed(1)}">${short(last)}</text>`,
-    `<text x="${pad.l}" y="${h - 4}">古い ← 要求 ${steps.length} 回 → 新しい</text>`,
+    `<text x="${pad.l}" y="${h - 4}">${esc(words.axis ?? `older ← requests: ${steps.length} → newer`)}</text>`,
     ...parts,
     '</svg>',
   ].join('')

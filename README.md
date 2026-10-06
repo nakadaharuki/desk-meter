@@ -1,40 +1,41 @@
 # desk-meter
 
-デスクトップ版 Claude Code（Code タブ）で動く Mod。小さな 1 本で、帯・欄・Svg のグラフ・Claude の道具・確認のフックをひととおり使っています。Mods を書き始める時の見本にどうぞ。
+A mod for Claude Code on the desktop (the Code tab). One small mod that uses a band, a pane, an Svg chart, a tool for Claude and a confirming hook, so it also works as a sample to start writing mods from.
 
-- 帯（入力欄の上）: コンテキストの使用率・ブランチ・道具の回数・経過時間
-- 欄（`/meter`）: 要求ごとのトークンの積み上げ棒（Svg）・キャッシュの当たり・よく使う道具・メモ・「Claude に振り返りを頼む」
-- Claude の道具 `note`: Claude が欄にメモを残す
-- 確認: `rm -r`・`git reset --hard`・`git push --force` は走らせる前に聞く（答えが無ければ止める）
+- Band (above the prompt): context usage, branch, tool count, time spent
+- Pane (`/meter`): tokens per request as stacked bars (Svg), the cache hit, the most used tools, notes, and "Ask Claude for a review"
+- Claude's tool `note`: Claude leaves a note in the pane
+- Check: `rm -r`, `git reset --hard` and `git push --force` are asked about before they run (no answer means stop)
 
-## 入れる
+English and Japanese: the `language` option (`auto`, `en`, `ja`) follows Claude Code's `language` setting on `auto`.
+
+## Install
 
 ```
 /plugin marketplace add nakadaharuki/desk-meter
 /plugin install desk-meter@desk-meter
 ```
 
-Claude Code v2.1.287 以上（デスクトップに同梱の 2.1.286 でも描かれることを確認）。
+Claude Code v2.1.287 or later (also seen drawing in the 2.1.286 the desktop app ships). It is also listed, pinned to a read commit with a manifest and a preview of what it draws, at [modscode.com/mods/desk-meter](https://modscode.com/mods/desk-meter/).
 
-## 中で使っている物
+## What it touches
 
-Mods は隔離されずに動くので、入れる前に読めるよう書いておきます。コードは [hooks/register.js](hooks/register.js) と [hooks/chart.js](hooks/chart.js) の 2 本（約 330 行）だけです。
+Mods are not sandboxed, so here it is before you install. The code is two files, [hooks/register.js](hooks/register.js) and [hooks/chart.js](hooks/chart.js).
 
-- 通信しません（`$.http` を使わない）。環境変数・ファイルも読みません
-- 外のプロセスは `git branch --show-current` の 1 つだけ（帯のブランチ名）
-- 使う API は `claude plugin validate .` で一覧できます
+- No network (`$.http` is not used). No environment variables, no files
+- One outside process: `git branch --show-current` (the branch in the band)
+- It reads Claude Code's `language` setting to pick the language
+- `claude plugin validate .` lists every API it uses
 
-## 試験
+## Tests
 
 ```
 claude plugin validate .
 claude plugin test
 ```
 
-## 関連
+## 日本語
 
-成分表（何に触れるか）と、版を固定した入れ方は [modscode.com/mods/desk-meter](https://modscode.com/mods/desk-meter/) にあります。
-
-デスクトップ版の Mods で踏んだ罠は Zenn に書いています: https://zenn.dev/nakadaharuki
+デスクトップ版 Claude Code（Code タブ）で動く Mod。帯にコンテキストの使用率・ブランチ・道具の回数、欄（`/meter`）に要求ごとのトークンのグラフとメモを出し、危ないコマンドは走らせる前に聞きます。表示は日本語にもなります（`language` の設定が `auto` なら Claude Code の `language` 設定に合わせる）。成分表と入れ方は [modscode.com/ja/mods/desk-meter](https://modscode.com/ja/mods/desk-meter/)。デスクトップ版の Mods で踏んだ罠は Zenn に: https://zenn.dev/nakadaharuki
 
 MIT License

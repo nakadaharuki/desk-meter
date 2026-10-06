@@ -31,6 +31,7 @@ function boot(on: any, saved: Map<string, unknown>, sent: string[] = []) {
     saved.set(e.key, e.value)
     return { value: undefined }
   })
+  on('settings.read', () => ({ value: { language: 'japanese' } }))
   on('tool.register', () => ({ value: undefined }))
   on('command.register', () => ({ value: undefined }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
@@ -129,9 +130,9 @@ test('振り返りのボタンは、次の時計の刻みで Claude に送る', 
   expect(sent[0]).toContain('（A）')
 })
 
-test('危ないコマンドは聞き、止めたら走らせない', async ($, on) => {
+test('危ないコマンドは聞き、止めたら走らせない（会話が始まる前は英語）', async ($, on) => {
   let ran = 0
-  let answer = '止める'
+  let answer = 'Stop'
   on('tool.call', ($: any, e: any) => {
     if (e.tool === 'AskUserQuestion') return { result: { answers: { [e.questions[0].question]: answer } } }
     ran += 1
@@ -141,7 +142,7 @@ test('危ないコマンドは聞き、止めたら走らせない', async ($, o
   expect(r.deny).toBeDefined()
   expect(ran).toBe(0)
 
-  answer = '走らせる'
+  answer = 'Run'
   await $.tool.call({ tool: 'Bash', command: 'git push --force origin main' })
   expect(ran).toBe(1)
 
@@ -167,5 +168,6 @@ test('グラフの部品', () => {
   expect(short(1_500_000)).toBe('1.5M')
   const svg = tokenChart([{ input: 1, output: 1, cacheRead: 2, cacheWrite: 0 }], 400, 160)
   expect(svg).toContain('viewBox="0 0 400 160"')
-  expect(svg).toContain('要求 1 回')
+  expect(svg).toContain('requests: 1')
+  expect(tokenChart([], 400, 160, { legend: ['キャッシュ読み', '書き', '新しい入力', '出力'], axis: '古い ← 要求 0 回 → 新しい' })).toContain('要求 0 回')
 })
