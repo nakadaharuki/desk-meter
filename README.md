@@ -38,4 +38,4 @@ claude plugin test
 
 デスクトップ版 Claude Code（Code タブ）で動く Mod。帯にコンテキストの使用率・ブランチ・道具の回数、欄（`/meter`）に要求ごとのトークンのグラフとメモを出し、危ないコマンドは走らせる前に聞きます。表示は日本語にもなります（`language` の設定が `auto` なら Claude Code の `language` 設定に合わせる）。成分表と入れ方は [modscode.com/ja/mods/desk-meter](https://modscode.com/ja/mods/desk-meter/)。デスクトップ版の Mods で踏んだ罠は Zenn に: https://zenn.dev/nakadaharuki
 
-MIT License
+All rights reserved（著作権は nakadadev。読むことと Claude Code に入れて使うことはできますが、複製・改変・再配布は許可していません）
