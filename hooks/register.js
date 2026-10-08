@@ -231,7 +231,9 @@ export function register(on, options = {}) {
   })
 
   // ---- 帯（入力欄の上の 1 行） ----
+  // 既定は出さない（入力欄の上を占めるため）。数えるのは続け、/meter の欄で見る
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (options.band !== 'on') return next(e)
     if (!context?.percent && !branch && !toolTotal()) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     const desk = e.surface !== 'terminal'

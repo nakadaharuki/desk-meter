@@ -49,7 +49,22 @@ function boot(on: any, saved: Map<string, unknown>, sent: string[] = []) {
 
 const start = ($: any) => $.session.start({ surface: 'desktop', isInteractive: true, cwd: '/work' })
 
-test('帯に使用率・ブランチ・道具の回数が出る', async ($, on) => {
+test('帯は既定で出さず、数えた物は欄に出る', async ($, on) => {
+  const clock = boot(on, new Map())
+  on('tool.call', () => ({ result: 'ok' }))
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['Claude Code の帯'] }))
+  await start($)
+  await $.tool.call({ tool: 'Read', file_path: 'a.md' })
+  await clock.advance(1000)
+  const band = await $.ui.mount({ ...BAND, surface: 'desktop' })
+  expect(await band.find({ type: 'Text', text: 'Claude Code の帯' })).toBeDefined()
+  expect(await band.find({ type: 'Text', text: '道具 1 回' })).toBeUndefined()
+  await band.unmount()
+  const pane = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect(await pane.find({ type: 'Text', text: '文脈 42%（84k / 200k）' })).toBeDefined()
+})
+
+test('band を on にすると帯に使用率・ブランチ・道具の回数が出る', { options: { band: 'on' } }, async ($, on) => {
   const clock = boot(on, new Map())
   on('tool.call', () => ({ result: 'ok' }))
   on('ui.render', () => ({ type: 'Text', props: {}, children: ['Claude Code の帯'] }))

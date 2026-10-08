@@ -1,6 +1,6 @@
 {
   "name": "desk-meter",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Context usage, branch and tool count in a band; tokens per request charted in a pane; a note tool for Claude and a check before dangerous commands. English and Japanese",
   "author": { "name": "nakadadev" },
   "userConfig": {
@@ -10,6 +10,13 @@
       "description": "Language of the band, the pane and the messages; auto follows Claude Code's language setting (Japanese when it names Japanese, English otherwise)",
       "options": ["auto", "en", "ja"],
       "default": "auto"
+    },
+    "band": {
+      "type": "string",
+      "title": "Band",
+      "description": "Show the one-line band above the prompt (context, branch, tool count, time). Off by default; the counts are still kept and shown in the /meter pane",
+      "options": ["off", "on"],
+      "default": "off"
     }
   }
 }
